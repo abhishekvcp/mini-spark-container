@@ -1,29 +1,87 @@
 # mini-spark-container
-We are creating a "Cloud-Native" sandbox on your own laptop
-Combining Jupyter, Spark, and Delta Lake into one container, and then adding MinIO as a separate storage container, 
-
-1. **The Storage Layer (minio-compose.yml)**
-
-This file manages only your "Data Warehouse" (MinIO).
-
-2. **The Compute Layer (spark-compose.yml)**
-
-This file manages your Jupyter and Spark engine. Notice it "joins" the network created by the first file.
+mini-spark-container/
+├── docker/
+│   ├── build/
+│   │   └── delta-jupyter.Dockerfile
+│   ├── minio-compose.yml
+│   └── spark-compose.yml
+├── notebooks/                <-- Your .ipynb files will live here
+└── .gitignore
 
 
+docker/build/delta-jupyter.Dockerfile
+docker/minio-compose.yml
+docker/spark-compose.yml
 
-Lifecycle Management: You can stop your Spark cluster (docker-compose -f spark-compose.yml down) to save RAM on your laptop, while keeping your MinIO storage running in the background.
+Step 1: Initialize the Storage 
+docker-compose -f minio-compose.yml up -d
 
-Pluggability: You could create a third YAML file for a different tool (like Presto or Trino) and simply point it to the same data-exchange network to query the same Delta Lake files.
+Step 2: Launch the Spark Cluster
+docker-compose -f spark-compose.yml up -d --build
 
-Cleanliness: It prevents your "Compute" logs from getting mixed up with your "Storage" logs in your terminal.
+Step 3: 
+Start Coding in Jupyter
+http://localhost:8888
+token is password
 
-The Execution Order
+Watch and manage spark jobs : 
+http://localhost:8080/ 
+<img width="772" height="594" alt="image" src="https://github.com/user-attachments/assets/110ff3e8-5070-496d-85ef-72ee9152c7f3" />
 
-To run this correctly, you must follow this sequence:
+Test the miniio 
+http://localhost:9001/
+<img width="716" height="394" alt="image" src="https://github.com/user-attachments/assets/9d1d2a9a-47a5-490d-917f-7072db7f71d3" />
 
-** Start MinIO first: docker-compose -f minio-compose.yml up -d **
 
-** Start Spark second: docker-compose -f spark-compose.yml up -d **
+-----------------------------------------------
+from pyspark.sql import SparkSession
+#from delta import configure_spark_with_delta_pip
 
-By using the external: true flag in the second file, the Spark containers will be able to resolve the hostname minio as if they were in the same file.
+from pyspark.sql import SparkSession
+from delta import *
+
+# 1. Point to the Spark Master container defined in your docker-compose
+# 2. Tell Spark where the MinIO storage lives
+builder = SparkSession.builder \
+    .appName("Abhi-Distributed-Delta-Job") \
+    .master("spark://spark-master:7077") \
+    .config("spark.hadoop.fs.s3a.endpoint", "http://minio-storage:9000") \
+    .config("spark.hadoop.fs.s3a.access.key", "admin") \
+    .config("spark.hadoop.fs.s3a.secret.key", "password") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .config("spark.executor.memory", "1g") \
+    .config("spark.executor.cores", "1")
+
+# Use the delta-spark helper to ensure all distributed workers get the libraries
+spark = configure_spark_with_delta_pip(builder).getOrCreate()
+
+print("Connected to Master at spark://spark-master:7077")
+
+print("Data saved to Delta Lake on MinIO!")](http://localhost:8888)
+ --------------------------------------------------------------------------------------------------------
+Error1 : 
+The code failed to create spark object
+
+Reason : sometime delta-spark 3.1.0 dont work well with jupyter  3.5.0
+
+vim docker/build/delta-jupyter.Dockerfile 
+
+RUN pip install delta-spark==3.2.0  ( Replaced older version) 
+
+Rebuilt the imege and restarted the containers
+docker-compose -f spark-compose.yml build  (Rebuilt image ) 
+docker-compose -f spark-compose.yml up -d  ( Restart containers )
+
+ --------------------------------------------------------------------------------------------------------
+ Error2 : Jupyter notebook was not refreshed 
+ Solution : Recreated jupyter notebook with 3 commands
+ 
+ 1010  docker-compose -f spark-compose.yml down
+ 1011  docker rmi docker-jupyter
+ 1012  docker-compose -f spark-compose.yml up -d --build
+ 
+--------------------------------------------------------------------------------------------------------
+
