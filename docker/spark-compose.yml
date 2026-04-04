@@ -1,0 +1,68 @@
+version: '3.8'
+
+networks:
+  data-exchange:
+    external: true
+
+services:
+  # 1. THE JUPYTER NODE (Driver)
+  jupyter:
+    build:
+      context: ./build
+      dockerfile: delta-jupyter.Dockerfile
+    container_name: jupyter-abhi
+    networks:
+      - data-exchange
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+      - ../notebooks:/home/jovyan/work1
+    environment:
+      - SPARK_DIST_CLASSPATH=/usr/local/spark/jars/*
+      - SPARK_EXTRA_CLASSPATH=/usr/local/spark/jars/*
+      - JUPYTER_TOKEN=password
+
+  # 2. THE MASTER NODE
+  # We use the same image but call the Master class directly
+  spark-master:
+    build:
+      context: ./build
+      dockerfile: delta-jupyter.Dockerfile
+    container_name: spark-master
+    networks:
+      - data-exchange
+    user: root
+    command: >
+      /usr/local/spark/bin/spark-class org.apache.spark.deploy.master.Master
+      --ip spark-master
+      --port 7077
+      --webui-port 8080
+    environment:
+      - SPARK_MODE=master
+      - SPARK_DIST_CLASSPATH=/usr/local/spark/jars/*
+      - SPARK_EXTRA_CLASSPATH=/usr/local/spark/jars/*
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+
+  # 3. THE WORKER NODE
+  # We use the same image but call the Worker class directly
+  spark-worker:
+    build:
+      context: ./build
+      dockerfile: delta-jupyter.Dockerfile
+    container_name: spark-worker-1
+    networks:
+      - data-exchange
+    user: root
+    command: >
+      /usr/local/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_DIST_CLASSPATH=/usr/local/spark/jars/*
+      - SPARK_EXTRA_CLASSPATH=/usr/local/spark/jars/*
+    depends_on:
+      - spark-master
