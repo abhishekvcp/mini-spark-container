@@ -1,6 +1,8 @@
 # 🚀 Laptop : Distributed Spark & Delta Lakehouse on MinIO (Macbook M1/ARM64)
 
-This project establishes a high-performance distributed Spark cluster using Docker. It is specifically optimized for **Apple Silicon (M1/M2/M3)** and uses **Delta Lake** for ACID transactions and **MinIO** as the S3-compatible storage layer.
+This project establishes a high-performance distributed Spark cluster using Docker.
+It is specifically optimized for **Apple Silicon (M1/M2/M3)** and uses **Delta Lake** 
+for ACID transactions and **MinIO** as the S3-compatible storage layer.
 
 ## 📂 Project Structure
 ```text
@@ -15,17 +17,17 @@ This project establishes a high-performance distributed Spark cluster using Dock
 ************************************************************************************************************
 Prerequisite : INSTALL Docker Desktop on Macbook Apple silicon
 
-We are going to spin up spark cluster with 1 master , 1 worker , 1 jupyter notebook engine with lakehouse , 1 minio engine to simulate aws s3 and send data as if it were a real cluster.
+We are going to spin up spark cluster with 1 master , 1 worker , 1 jupyter notebook engine with lakehouse 
+,1 minio engine to simulate aws s3 and send data as if it were a real cluster.
 
 ***************************************************************************************************************
 
-Setting up Spark with S3A on M1 Macs often leads to ClassNotFoundException. This project solves that through three critical layers of configuration:
 
-System-Level Defaults: Instead of configuring S3 in Python, we bake spark-defaults.conf into the Docker image. This ensures the JVM on every node (Driver and Worker) initializes the S3A protocol at startup.
+Permission Synchronization: JARs are explicitly set to chmod 644 in the Dockerfile. 
+This prevents the "Silent Failure" where a Worker cannot read the AWS SDK because it is owned by root.
 
-Permission Synchronization: JARs are explicitly set to chmod 644 in the Dockerfile. This prevents the "Silent Failure" where a Worker cannot read the AWS SDK because it is owned by root.
-
-Architecture Alignment: Using a single Dockerfile for Master, Worker, and Jupyter ensures the Java Classpath is identical across the entire cluster, preventing "Brain-Split" errors.
+Architecture Alignment: Using a single Dockerfile for Master, Worker, and Jupyter ensures the 
+Java Classpath is identical across the entire cluster, preventing "Brain-Split" errors.
 
 ######################################################
 
@@ -75,7 +77,6 @@ spark.range(10).write.format("delta").mode("overwrite").save("s3a://lakehouse/my
 
 ######################################################
 
-<img width="862" height="400" alt="image" src="https://github.com/user-attachments/assets/7d4932f4-3c73-4328-bd8e-a6b217caedf0" />
 
 
 
