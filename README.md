@@ -46,6 +46,9 @@ STOPPING THE Environment
 
 docker-compose -f spark-compose.yml down && docker-compose -f minio-compose.yml down
 
+# clean the unused images from the environment
+docker image prune -f
+
 ######################################################
 
 REBUILD Environment when there is change in docker compose files
