@@ -1,0 +1,43 @@
+########################################################################
+
+# 1. Make sure you are in the project root
+cd /path/to/mini-spark-container
+
+# 2. Force the push (Overwrites GitHub with your M1 fixes)
+git push origin main --force
+
+###############################################
+
+
+git remote set-url origin https://github.com/YOUR_USERNAME/mini-spark-container.git
+git pull origin main
+
+
+
+
+###################################################
+
+Bring the changes from github to local and apply with local changes before pushing to github
+
+# 1. Stage your current M1 configuration changes
+git add .
+
+# 2. Commit them locally
+git commit -m "Work in progress: local M1 spark updates"
+
+# 3. Now pull the README changes from GitHub
+git pull origin main --rebase
+
+###################################################
+
+
+# 1. Put your local changes in the "Stash" (cleans your workspace)
+git stash
+
+# 2. Pull the README changes from GitHub
+git pull origin main --rebase
+
+# 3. Pop your work back out of the drawer
+git stash pop
+
+
