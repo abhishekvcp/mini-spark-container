@@ -1,87 +1,72 @@
-# mini-spark-container
-mini-spark-container/
-├── docker/
-│   ├── build/
-│   │   └── delta-jupyter.Dockerfile
-│   ├── minio-compose.yml
-│   └── spark-compose.yml
-├── notebooks/                <-- Your .ipynb files will live here
-└── .gitignore
+# 🚀 Distributed Spark & Delta Lakehouse on MinIO (M1/ARM64)
+
+This project establishes a high-performance distributed Spark cluster using Docker. It is specifically optimized for **Apple Silicon (M1/M2/M3)** and uses **Delta Lake** for ACID transactions and **MinIO** as the S3-compatible storage layer.
+
+## 📂 Project Structure
+```text
+.
+├── build/
+│   ├── delta-jupyter.Dockerfile  # Unified image for Driver, Master, & Worker
+│   └── spark-defaults.conf       # System-level Spark/Hadoop configurations
+├── notebooks/                    # Persistent storage for .ipynb files
+├── spark-compose.yml             # Spark Cluster Orchestration (Master/Worker)
+└── minio-compose.yml             # Storage & Bucket Auto-creation
 
 
-docker/build/delta-jupyter.Dockerfile
-docker/minio-compose.yml
-docker/spark-compose.yml
+Setting up Spark with S3A on M1 Macs often leads to ClassNotFoundException. This project solves that through three critical layers of configuration:
 
-Step 1: Initialize the Storage 
+System-Level Defaults: Instead of configuring S3 in Python, we bake spark-defaults.conf into the Docker image. This ensures the JVM on every node (Driver and Worker) initializes the S3A protocol at startup.
+
+Permission Synchronization: JARs are explicitly set to chmod 644 in the Dockerfile. This prevents the "Silent Failure" where a Worker cannot read the AWS SDK because it is owned by root.
+
+Architecture Alignment: Using a single Dockerfile for Master, Worker, and Jupyter ensures the Java Classpath is identical across the entire cluster, preventing "Brain-Split" errors.
+
+Quick Start (Run Book)
+1. Initialize Storage
+
+Start MinIO and automatically create the lakehouse bucket:
+
+Bash
 docker-compose -f minio-compose.yml up -d
+2. Build and Launch the Cluster
 
-Step 2: Launch the Spark Cluster
-docker-compose -f spark-compose.yml up -d --build
+Force a native ARM64 build and recreate containers to ensure environment variables are injected:
 
-Step 3: 
-Start Coding in Jupyter
-http://localhost:8888
-token is password
+Bash
+docker-compose -f spark-compose.yml up -d --build --force-recreate
+3. Verify Worker Permissions
 
-Watch and manage spark jobs : 
-http://localhost:8080/ 
-<img width="772" height="594" alt="image" src="https://github.com/user-attachments/assets/110ff3e8-5070-496d-85ef-72ee9152c7f3" />
+Ensure the Worker can physically read the S3 bridge:
 
-Test the miniio 
-http://localhost:9001/
-<img width="716" height="394" alt="image" src="https://github.com/user-attachments/assets/9d1d2a9a-47a5-490d-917f-7072db7f71d3" />
+Bash
+docker exec -it spark-worker-1 ls -l /usr/local/spark/jars/hadoop-aws-3.3.4.jar
+# Should return: -rw-r--r--
 
+Spark Configuration (spark-defaults.conf)
+The following settings are critical for the MinIO handshake:
 
------------------------------------------------
-from pyspark.sql import SparkSession
-#from delta import configure_spark_with_delta_pip
+spark.hadoop.fs.s3a.impl: Forces the S3A Filesystem class.
+
+spark.hadoop.fs.s3a.path.style.access: Required for MinIO to bypass DNS-style bucket naming.
+
+spark.driver.extraClassPath: Explicitly points the Driver to the S3 JARs.
+
+## Send data to local lakshouse ##
 
 from pyspark.sql import SparkSession
 from delta import *
 
-# 1. Point to the Spark Master container defined in your docker-compose
-# 2. Tell Spark where the MinIO storage lives
 builder = SparkSession.builder \
-    .appName("Abhi-Distributed-Delta-Job") \
+    .appName("Lakehouse-Test") \
     .master("spark://spark-master:7077") \
-    .config("spark.hadoop.fs.s3a.endpoint", "http://minio-storage:9000") \
-    .config("spark.hadoop.fs.s3a.access.key", "admin") \
-    .config("spark.hadoop.fs.s3a.secret.key", "password") \
-    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
-    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-    .config("spark.executor.memory", "1g") \
-    .config("spark.executor.cores", "1")
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
 
-# Use the delta-spark helper to ensure all distributed workers get the libraries
 spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
-print("Connected to Master at spark://spark-master:7077")
+# Write a Delta Table
+spark.range(10).write.format("delta").mode("overwrite").save("s3a://lakehouse/my_table")
 
-print("Data saved to Delta Lake on MinIO!")](http://localhost:8888)
- --------------------------------------------------------------------------------------------------------
-Error1 : 
-The code failed to create spark object
+<img width="862" height="400" alt="image" src="https://github.com/user-attachments/assets/7d4932f4-3c73-4328-bd8e-a6b217caedf0" />
 
-Reason : sometime delta-spark 3.1.0 dont work well with jupyter  3.5.0
-
-vim docker/build/delta-jupyter.Dockerfile 
-
-RUN pip install delta-spark==3.2.0  ( Replaced older version) 
-
-Rebuilt the imege and restarted the containers
-docker-compose -f spark-compose.yml build  (Rebuilt image ) 
-docker-compose -f spark-compose.yml up -d  ( Restart containers )
-
- --------------------------------------------------------------------------------------------------------
- Error2 : Jupyter notebook was not refreshed 
- Solution : Recreated jupyter notebook with 3 commands
- 
- 1010  docker-compose -f spark-compose.yml down
- 1011  docker rmi docker-jupyter
- 1012  docker-compose -f spark-compose.yml up -d --build
- 
---------------------------------------------------------------------------------------------------------
 
