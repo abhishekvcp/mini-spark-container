@@ -17,14 +17,16 @@ for ACID transactions and **MinIO** as the S3-compatible storage layer.
 ************************************************************************************************************
 Prerequisite : INSTALL Docker Desktop on Macbook Apple silicon
 
-We are going to spin up spark cluster with 1 master , 1 worker , 1 jupyter notebook engine with lakehouse 
-,1 minio engine to simulate aws s3 and send data as if it were a real cluster.
+We are going to spin up spark cluster with 1 master , 1 worker , 
+1 jupyter notebook engine with lakehouse 
+and 1 minio engine to simulate aws s3 and send data as if it were a real cluster.
 
 ***************************************************************************************************************
 
 
 Permission Synchronization: JARs are explicitly set to chmod 644 in the Dockerfile. 
-This prevents the "Silent Failure" where a Worker cannot read the AWS SDK because it is owned by root.
+This prevents the "Silent Failure" where a Worker cannot read the AWS SDK because 
+it is owned by root.
 
 Architecture Alignment: Using a single Dockerfile for Master, Worker, and Jupyter ensures the 
 Java Classpath is identical across the entire cluster, preventing "Brain-Split" errors.
