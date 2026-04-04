@@ -1,4 +1,4 @@
-# 🚀 Distributed Spark & Delta Lakehouse on MinIO (M1/ARM64)
+# 🚀 Laptop : Distributed Spark & Delta Lakehouse on MinIO (Macbook M1/ARM64)
 
 This project establishes a high-performance distributed Spark cluster using Docker. It is specifically optimized for **Apple Silicon (M1/M2/M3)** and uses **Delta Lake** for ACID transactions and **MinIO** as the S3-compatible storage layer.
 
@@ -12,6 +12,12 @@ This project establishes a high-performance distributed Spark cluster using Dock
 ├── spark-compose.yml             # Spark Cluster Orchestration (Master/Worker)
 └── minio-compose.yml             # Storage & Bucket Auto-creation
 
+************************************************************************************************************
+Prerequisite : INSTALL Docker Desktop on Macbook Apple silicon
+
+We are going to spin up spark cluster with 1 master , 1 worker , 1 jupyter notebook engine with lakehouse , 1 minio engine to simulate aws s3 and send data as if it were a real cluster.
+
+***************************************************************************************************************
 
 Setting up Spark with S3A on M1 Macs often leads to ClassNotFoundException. This project solves that through three critical layers of configuration:
 
