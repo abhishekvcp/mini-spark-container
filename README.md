@@ -21,37 +21,34 @@ Permission Synchronization: JARs are explicitly set to chmod 644 in the Dockerfi
 
 Architecture Alignment: Using a single Dockerfile for Master, Worker, and Jupyter ensures the Java Classpath is identical across the entire cluster, preventing "Brain-Split" errors.
 
-Quick Start (Run Book)
-1. Initialize Storage
+######################################################
 
-Start MinIO and automatically create the lakehouse bucket:
+STARTING THE Environment
 
-Bash
 docker-compose -f minio-compose.yml up -d
-2. Build and Launch the Cluster
 
-Force a native ARM64 build and recreate containers to ensure environment variables are injected:
+docker-compose -f spark-compose.yml up -d
 
-Bash
+jupyter -> http://localhost:8888  (token = password)
+minio - > http://localhost:9001  (admin password)
+Spark - > http://localhost:8080/ 
+
+
+######################################################
+
+STOPPING THE Environment
+
+docker-compose -f spark-compose.yml down && docker-compose -f minio-compose.yml down
+
+######################################################
+
+REBUILD Environment when there is change in docker compose files
+
 docker-compose -f spark-compose.yml up -d --build --force-recreate
-3. Verify Worker Permissions
 
-Ensure the Worker can physically read the S3 bridge:
+######################################################
 
-Bash
-docker exec -it spark-worker-1 ls -l /usr/local/spark/jars/hadoop-aws-3.3.4.jar
-# Should return: -rw-r--r--
-
-Spark Configuration (spark-defaults.conf)
-The following settings are critical for the MinIO handshake:
-
-spark.hadoop.fs.s3a.impl: Forces the S3A Filesystem class.
-
-spark.hadoop.fs.s3a.path.style.access: Required for MinIO to bypass DNS-style bucket naming.
-
-spark.driver.extraClassPath: Explicitly points the Driver to the S3 JARs.
-
-## Send data to local lakshouse ##
+## pyspark Code Send data to local lakshouse ##
 
 from pyspark.sql import SparkSession
 from delta import *
@@ -67,6 +64,12 @@ spark = configure_spark_with_delta_pip(builder).getOrCreate()
 # Write a Delta Table
 spark.range(10).write.format("delta").mode("overwrite").save("s3a://lakehouse/my_table")
 
+######################################################
+
 <img width="862" height="400" alt="image" src="https://github.com/user-attachments/assets/7d4932f4-3c73-4328-bd8e-a6b217caedf0" />
+
+
+
+
 
 
